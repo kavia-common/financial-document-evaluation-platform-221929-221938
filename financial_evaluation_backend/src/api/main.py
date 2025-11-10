@@ -67,8 +67,16 @@ settings = get_settings()
 
 app = FastAPI(
     title="Financial Evaluation API",
-    description="API for uploading and evaluating financial documents. Placeholder deterministic evaluation.",
+    description=(
+        "API for uploading and evaluating financial documents. Placeholder deterministic evaluation.\n\n"
+        "CORS: allow_origins is configured to the frontend origin from env (default http://localhost:3000), not wildcard.\n"
+        "Security headers: responses include X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Referrer-Policy: no-referrer."
+    ),
     version="1.0.0",
+    openapi_tags=[
+        {"name": "health", "description": "Service health and readiness endpoints."},
+        {"name": "evaluations", "description": "Create and retrieve financial document evaluations."},
+    ],
 )
 
 # Restrictive CORS: only allow configured frontend origin
@@ -84,7 +92,13 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 
 
-@app.get("/", summary="Health Check", tags=["health"])
+@app.get(
+    "/",
+    summary="Health Check",
+    description="Health check endpoint returning simple status payload.",
+    tags=["health"],
+    responses={200: {"description": "Service is healthy."}},
+)
 def health_check():
     """Health check endpoint returning simple status payload."""
     return {"message": "Healthy"}
@@ -98,7 +112,10 @@ def health_check():
     description="Upload a financial document (multipart/form-data) along with JSON metadata to start an evaluation.",
     tags=["evaluations"],
     responses={
-        201: {"description": "Evaluation accepted and completed (placeholder)."},
+        201: {
+            "description": "Evaluation accepted and completed (placeholder).",
+            "content": {"application/json": {}},
+        },
         400: {"description": "Invalid input or file type/size."},
     },
 )
@@ -110,14 +127,21 @@ async def create_evaluation(
 ):
     """Accept multipart file + metadata, validate type and size, and run a deterministic placeholder evaluation.
 
-    Parameters:
-    - file: The uploaded document file.
-    - document_type: Category of the document.
-    - requested_by: Opaque requester ID (avoid PII).
-    - notes: Optional notes.
+    Parameters
+    ----------
+    file : UploadFile
+        The uploaded document file.
+    document_type : str
+        Category of the document (e.g., invoice, statement).
+    requested_by : str
+        Opaque requester ID (avoid PII).
+    notes : Optional[str]
+        Optional notes with no PII.
 
-    Returns:
-    - EvaluationCreateResponse with deterministic ID and status.
+    Returns
+    -------
+    EvaluationCreateResponse
+        Response containing the deterministic evaluation id, status, and created_at timestamp.
     """
     # Validate content type
     if file.content_type not in settings.ALLOWED_MIME_TYPES:
@@ -192,7 +216,18 @@ async def create_evaluation(
     },
 )
 async def get_evaluation(evaluation_id: str):
-    """Return the stored evaluation for the provided identifier."""
+    """Return the stored evaluation for the provided identifier.
+
+    Parameters
+    ----------
+    evaluation_id : str
+        The evaluation identifier obtained from the create endpoint.
+
+    Returns
+    -------
+    EvaluationResult
+        The full stored evaluation result for this identifier.
+    """
     result = EVAL_STORE.get(evaluation_id)
     if not result:
         logger.info("evaluation_not_found id=%s", evaluation_id)

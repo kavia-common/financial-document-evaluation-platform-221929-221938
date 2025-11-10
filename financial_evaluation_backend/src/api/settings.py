@@ -9,7 +9,12 @@ from pydantic import BaseModel, Field, ValidationError
 
 
 class _Settings(BaseModel):
-    """Application settings loaded from environment variables."""
+    """Application settings loaded from environment variables.
+
+    FRONTEND_ORIGIN controls CORS allow_origins and should match the frontend origin,
+    e.g., http://localhost:3000 in local development. It can also be provided via
+    REACT_APP_FRONTEND_URL for convenience in shared env files.
+    """
 
     DEBUG: bool = Field(default=False, description="Enable debug mode.")
     SECRET_KEY: str = Field(default="change-me", description="Secret key for cryptographic uses.")
